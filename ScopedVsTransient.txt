@@ -1,0 +1,139 @@
+﻿✅ 1. Create a new project
+dotnet new webapi -n LifetimeDemo
+
+
+Or Minimal API:
+
+dotnet new web -n LifetimeDemo
+
+✅ 2. Create 3 service interfaces & implementations
+📌 Interfaces/IGuidService.cs
+namespace LifetimeDemo.Interfaces;
+
+public interface IGuidService
+{
+    Guid Id { get; }
+}
+
+📌 Services/TransientGuidService.cs
+using LifetimeDemo.Interfaces;
+
+namespace LifetimeDemo.Services;
+
+public class TransientGuidService : IGuidService
+{
+    public Guid Id { get; } = Guid.NewGuid();
+}
+
+📌 Services/ScopedGuidService.cs
+using LifetimeDemo.Interfaces;
+
+namespace LifetimeDemo.Services;
+
+public class ScopedGuidService : IGuidService
+{
+    public Guid Id { get; } = Guid.NewGuid();
+}
+
+📌 Services/SingletonGuidService.cs
+using LifetimeDemo.Interfaces;
+
+namespace LifetimeDemo.Services;
+
+public class SingletonGuidService : IGuidService
+{
+    public Guid Id { get; } = Guid.NewGuid();
+}
+
+✅ 3. Register services in Program.cs
+📌 Program.cs
+using LifetimeDemo.Interfaces;
+using LifetimeDemo.Services;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Register lifetimes
+builder.Services.AddTransient<TransientGuidService>();
+builder.Services.AddScoped<ScopedGuidService>();
+builder.Services.AddSingleton<SingletonGuidService>();
+
+var app = builder.Build();
+
+// Show differences
+app.MapGet("/guids", (
+    TransientGuidService transient1,
+    TransientGuidService transient2,
+    ScopedGuidService scoped1,
+    ScopedGuidService scoped2,
+    SingletonGuidService singleton1,
+    SingletonGuidService singleton2
+) =>
+{
+    return Results.Json(new
+    {
+        transient_1 = transient1.Id,
+        transient_2 = transient2.Id,
+
+        scoped_1 = scoped1.Id,
+        scoped_2 = scoped2.Id,
+
+        singleton_1 = singleton1.Id,
+        singleton_2 = singleton2.Id
+    });
+});
+
+app.Run();
+
+✅ 4. Run the API
+dotnet run
+
+
+Go to:
+
+➡️ https://localhost:xxxx/guids
+
+✅ 5. Output Example
+✔️ FIRST request
+{
+  "transient_1": "8f3b...a21",
+  "transient_2": "5bcd...902",
+
+  "scoped_1": "c318...f12",
+  "scoped_2": "c318...f12",
+
+  "singleton_1": "d182...32a",
+  "singleton_2": "d182...32a"
+}
+
+✔️ SECOND request
+{
+  "transient_1": "112f...aa1",
+  "transient_2": "2cd2...32b",
+
+  "scoped_1": "e23e...112",
+  "scoped_2": "e23e...112",
+
+  "singleton_1": "d182...32a",
+  "singleton_2": "d182...32a"
+}
+
+✅ 6. Behavior Explained
+Lifetime	New Instance Each Resolve?	New Instance Per Request?	Shared Across App?
+Transient	✔ Yes	✔ Yes	❌ No
+Scoped	❌ No	✔ Yes	❌ No
+Singleton	❌ No	❌ No	✔ Yes
+Transient
+
+Every injection creates a new object.
+
+Even within the same request, you get different IDs.
+
+Scoped
+
+Same instance for the entire request.
+
+New instance for next request.
+
+Singleton
+
+Created once, reused for the entire lifetime of the application.
